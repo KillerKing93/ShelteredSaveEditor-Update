@@ -270,8 +270,7 @@ namespace ShelteredSE
                     {
                         Name = "textBox_searchInventory",
                         Location = new Point(60, 5),
-                        Width = 350,
-                        Anchor = AnchorStyles.Left | AnchorStyles.Right
+                        Width = 380
                     };
 
                     searchBox.TextChanged += (sender, e) =>
