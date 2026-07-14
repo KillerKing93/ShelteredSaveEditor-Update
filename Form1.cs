@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -44,6 +44,7 @@ namespace ShelteredSE
                     editorSelector.Show();
                     xmlDoc.LoadXml(decodedData);
                     itemNames.Load("ItemNames.xml");
+                    ProcessData.LoadItemNames();
                     ProcessData processData = new ProcessData(this);
                     processData.StartProcess();
                 }

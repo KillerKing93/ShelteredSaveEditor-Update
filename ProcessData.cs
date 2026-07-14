@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -26,6 +27,108 @@ namespace ShelteredSE
         public static List<(string Name, string Path)> familyMap = new List<(string Name, string Path)> { };
         public static List<(string Name, string Path)> treeMap = new List<(string Name, string Path)> { };
 
+        public static Dictionary<int, string> itemNamesByIndex = new Dictionary<int, string>();
+        public static Dictionary<string, string> itemNamesByTypeId = new Dictionary<string, string>();
+
+        public static void LoadItemNames()
+        {
+            itemNamesByIndex.Clear();
+            itemNamesByTypeId.Clear();
+
+            string csvPath = "Sheltered - Item #.csv";
+            if (File.Exists(csvPath))
+            {
+                try
+                {
+                    var lines = File.ReadAllLines(csvPath);
+                    foreach (var line in lines)
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        var parts = line.Split(',');
+                        if (parts.Length >= 3)
+                        {
+                            var typeStr = parts[0].Trim();
+                            var indexStr = parts[1].Trim();
+                            var nameStr = parts[2].Trim();
+
+                            if (typeStr == "type" || indexStr == "i#") continue; // Skip header
+
+                            if (int.TryParse(indexStr, out int idx))
+                            {
+                                itemNamesByIndex[idx] = nameStr;
+                            }
+                            if (!string.IsNullOrEmpty(typeStr))
+                            {
+                                itemNamesByTypeId[typeStr] = nameStr;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error reading CSV: " + ex.Message);
+                }
+            }
+        }
+
+        private Control CreateInputControl(string initialValue, string name, Point location)
+        {
+            if (initialValue.Equals("True", System.StringComparison.OrdinalIgnoreCase) || 
+                initialValue.Equals("False", System.StringComparison.OrdinalIgnoreCase))
+            {
+                var comboBox = new ComboBox()
+                {
+                    Name = name,
+                    Location = location,
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Width = 100
+                };
+                comboBox.Items.Add("True");
+                comboBox.Items.Add("False");
+                comboBox.Text = initialValue.Equals("True", System.StringComparison.OrdinalIgnoreCase) ? "True" : "False";
+                return comboBox;
+            }
+            else
+            {
+                var textBox = new TextBox()
+                {
+                    Text = initialValue,
+                    Name = name,
+                    Location = location,
+                    AutoSize = true
+                };
+
+                double dummyDouble;
+                int dummyInt;
+                if (double.TryParse(initialValue, out dummyDouble) || int.TryParse(initialValue, out dummyInt))
+                {
+                    textBox.KeyPress += (sender, e) =>
+                    {
+                        char decimalSeparator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator[0];
+                        char minusSign = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NegativeSign[0];
+
+                        if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) &&
+                            (e.KeyChar != decimalSeparator) && (e.KeyChar != minusSign))
+                        {
+                            e.Handled = true;
+                        }
+
+                        if ((e.KeyChar == decimalSeparator) && ((sender as TextBox).Text.IndexOf(decimalSeparator) > -1))
+                        {
+                            e.Handled = true;
+                        }
+
+                        if ((e.KeyChar == minusSign) && ((sender as TextBox).Text.IndexOf(minusSign) > -1 || (sender as TextBox).SelectionStart > 0))
+                        {
+                            e.Handled = true;
+                        }
+                    };
+                }
+
+                return textBox;
+            }
+        }
+
         public void StartProcess()
         {
             xmlData = form1.xmlDoc.FirstChild;
@@ -47,9 +150,23 @@ namespace ShelteredSE
             int counter = 0;
             foreach (XmlNode node in invMan)
             {
-                var realId = node.ChildNodes[0].InnerText;
-                var realName = xmlNames.SelectSingleNode("item_" + realId).InnerText;
-                var count = node.ChildNodes[1].InnerText;
+                var realId = node.SelectSingleNode("type")?.InnerText ?? (node.ChildNodes.Count > 0 ? node.ChildNodes[0].InnerText : "");
+                var count = node.SelectSingleNode("count")?.InnerText ?? (node.ChildNodes.Count > 1 ? node.ChildNodes[1].InnerText : "");
+
+                string realName = null;
+                if (node.Name.StartsWith("i") && int.TryParse(node.Name.Substring(1), out int slotIdx))
+                {
+                    itemNamesByIndex.TryGetValue(slotIdx, out realName);
+                }
+                if (string.IsNullOrEmpty(realName))
+                {
+                    itemNamesByTypeId.TryGetValue(realId, out realName);
+                }
+                if (string.IsNullOrEmpty(realName))
+                {
+                    realName = "Undefined Item (" + realId + ")";
+                }
+
                 inventoryMap.Add(("InventoryManager_" + counter.ToString() + "_textbox", "InventoryManager/inventory/" + node.Name + "/count"));
                 form1.listView_inventory.Items.Add(new ListViewItem() { Text = realName });
                 counter += 1;
@@ -72,7 +189,9 @@ namespace ShelteredSE
             else
             {
                 form1.panel_inventory.Controls.Add(new Label() { Text = form1.listView_inventory.Items[index].Text, Name = "InventoryManager_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
-                form1.panel_inventory.Controls.Add(new TextBox() { Text = xmlData.SelectSingleNode(inventoryMap[index].Path).InnerText, Name = "InventoryManager_" + index.ToString() + "_textbox", Location = new Point(200, 10), AutoSize = true });
+                var initialValue = xmlData.SelectSingleNode(inventoryMap[index].Path).InnerText;
+                var inputCtrl = CreateInputControl(initialValue, "InventoryManager_" + index.ToString() + "_textbox", new Point(200, 10));
+                form1.panel_inventory.Controls.Add(inputCtrl);
             }
         }
         // SAVE INFO PROCESSING
@@ -113,12 +232,15 @@ namespace ShelteredSE
                 {
                     string password = node.Attributes[0].InnerText + node.Attributes[1].InnerText + node.Attributes[2].InnerText + node.Attributes[3].InnerText;
                     form1.panel_saveInfo.Controls.Add(new Label() { Text = form1.listView_saveInfo.Items[index].Text, Name = "SaveInfo_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
-                    form1.panel_saveInfo.Controls.Add(new TextBox() { Text = password, Name = "SaveInfo_" + index.ToString() + "_textbox", Location = new Point(200, 10), AutoSize = true });
+                    var inputCtrl = CreateInputControl(password, "SaveInfo_" + index.ToString() + "_textbox", new Point(200, 10));
+                    form1.panel_saveInfo.Controls.Add(inputCtrl);
                 }
                 else
                 {
                     form1.panel_saveInfo.Controls.Add(new Label() { Text = form1.listView_saveInfo.Items[index].Text, Name = "SaveInfo_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
-                    form1.panel_saveInfo.Controls.Add(new TextBox() { Text = xmlData.SelectSingleNode(saveInfoMap[index].Path).InnerText, Name = "SaveInfo_" + index.ToString() + "_textbox", Location = new Point(200, 10), AutoSize = true });
+                    var initialValue = xmlData.SelectSingleNode(saveInfoMap[index].Path).InnerText;
+                    var inputCtrl = CreateInputControl(initialValue, "SaveInfo_" + index.ToString() + "_textbox", new Point(200, 10));
+                    form1.panel_saveInfo.Controls.Add(inputCtrl);
                 }
             }
         }
@@ -258,7 +380,9 @@ namespace ShelteredSE
                     {
                         var value = xmlData.SelectSingleNode(familyMap[index].Path).Attributes[i];
                         form1.panel_character.Controls.Add(new Label() { Text = value.Name, Name = chosen + "_label", Location = new Point(10, 10 + i * 20), AutoSize = true });
-                        form1.panel_character.Controls.Add(new TextBox() { Text = ((int)Math.Floor(double.Parse(value.InnerText) * 255)).ToString(), Name = chosen + "_textbox", Location = new Point(200, 10 + i * 20), AutoSize = true });
+                        var initialValue = ((int)Math.Floor(double.Parse(value.InnerText) * 255)).ToString();
+                        var inputCtrl = CreateInputControl(initialValue, chosen + "_textbox", new Point(200, 10 + i * 20));
+                        form1.panel_character.Controls.Add(inputCtrl);
                     }
                 }
                 else if (text == "Member Trait")
@@ -271,7 +395,9 @@ namespace ShelteredSE
                 else
                 {
                     form1.panel_character.Controls.Add(new Label() { Text = text, Name = chosen + "_label", Location = new Point(10, 10), AutoSize = true });
-                    form1.panel_character.Controls.Add(new TextBox() { Text = xmlData.SelectSingleNode(familyMap[index].Path).InnerText, Name = chosen + "_textbox", Location = new Point(200, 10), AutoSize = true });
+                    var initialValue = xmlData.SelectSingleNode(familyMap[index].Path).InnerText;
+                    var inputCtrl = CreateInputControl(initialValue, chosen + "_textbox", new Point(200, 10));
+                    form1.panel_character.Controls.Add(inputCtrl);
                 }
             }
         }
@@ -297,14 +423,17 @@ namespace ShelteredSE
                         foreach (XmlNode xmlNode in xmlData.SelectSingleNode(node.FullPath).Attributes)
                         {
                             form1.panel_tree.Controls.Add(new Label() { Text = xmlNode.Name, Name = node.ToolTipText + "_label", Location = new Point(10, 10 + 30 * internalCounter), AutoSize = true });
-                            form1.panel_tree.Controls.Add(new TextBox() { Text = xmlNode.InnerText, Name = node.ToolTipText + "_textbox", Location = new Point(200, 10 + 30 * internalCounter), AutoSize = true });
+                            var inputCtrl = CreateInputControl(xmlNode.InnerText, node.ToolTipText + "_textbox", new Point(200, 10 + 30 * internalCounter));
+                            form1.panel_tree.Controls.Add(inputCtrl);
                             internalCounter += 1;
                         }
                     }
                     else
                     {
                         form1.panel_tree.Controls.Add(new Label() { Text = node.Text, Name = node.ToolTipText + "_label", Location = new Point(10, 10), AutoSize = true });
-                        form1.panel_tree.Controls.Add(new TextBox() { Text = xmlData.SelectSingleNode(node.FullPath).InnerText, Name = node.ToolTipText + "_textbox", Location = new Point(200, 10), AutoSize = true });
+                        var initialValue = xmlData.SelectSingleNode(node.FullPath).InnerText;
+                        var inputCtrl = CreateInputControl(initialValue, node.ToolTipText + "_textbox", new Point(200, 10));
+                        form1.panel_tree.Controls.Add(inputCtrl);
                     }
                 }
             }
