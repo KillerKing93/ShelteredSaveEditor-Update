@@ -162,6 +162,13 @@ namespace ShelteredSE
             xmlData = form1.xmlDoc.FirstChild;
             xmlNames = form1.itemNames.FirstChild;
             if (xmlData.Name != "root") return;
+
+            // Clear static map buffers to prevent duplicates when reloading saves
+            inventoryMap.Clear();
+            saveInfoMap.Clear();
+            familyMap.Clear();
+            treeMap.Clear();
+
             // SAVE INFO PROCESSING
             SProcess(xmlData.SelectSingleNode("SaveInfo"));
             // INVENTORY PROCESSING
@@ -170,7 +177,6 @@ namespace ShelteredSE
             CProcess(form1.treeView_character.Nodes, xmlData.SelectSingleNode("FamilyMembers"));
             // TREE EDITOR PROCESSING
             TProcess(form1.treeView_tree.Nodes, xmlData);
-
         }
         // INVENTORY PROCESSING
         public void IProcess(XmlNode invMan)
@@ -394,6 +400,11 @@ namespace ShelteredSE
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FamilyManager/particleTintActive"));
             form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Mystery Hatch Password" });
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FamilyManager/particleTint"));
+            // stored water details
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Stored Water" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "WaterManager/storedWater"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Max Stored Water" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "WaterManager/maxStoredWater"));
         }
         // SAVE INFO PAINTER
         public void PaintSaveInfo(int index)
