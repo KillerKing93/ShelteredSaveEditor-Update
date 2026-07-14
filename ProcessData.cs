@@ -408,10 +408,14 @@ namespace ShelteredSE
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "WaterManager/maxStoredWater"));
 
             // stored food details
-            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Stored Food" });
-            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/storedFood"));
-            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Max Stored Food" });
-            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/maxStoredFood"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pantry Rations" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/rations"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pantry Max Rations" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/maxRations"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pantry Raw Meat" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/meat"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pantry Max Meat" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/maxMeat"));
 
             // oxygen & radiation
             form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Oxygen Level" });
