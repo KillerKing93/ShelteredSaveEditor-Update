@@ -30,10 +30,22 @@ namespace ShelteredSE
         public static Dictionary<int, string> itemNamesByIndex = new Dictionary<int, string>();
         public static Dictionary<string, string> itemNamesByTypeId = new Dictionary<string, string>();
 
+        public class CsvItemInfo
+        {
+            public string TypeId { get; set; }
+            public int Index { get; set; }
+            public string Name { get; set; }
+            public string Description { get; set; }
+        }
+
+        public static Dictionary<int, CsvItemInfo> csvItemsByIndex = new Dictionary<int, CsvItemInfo>();
+        public static Dictionary<string, CsvItemInfo> csvItemsByTypeId = new Dictionary<string, CsvItemInfo>();
+        public static List<ListViewItem> allInventoryListViewItems = new List<ListViewItem>();
+
         public static void LoadItemNames()
         {
-            itemNamesByIndex.Clear();
-            itemNamesByTypeId.Clear();
+            csvItemsByIndex.Clear();
+            csvItemsByTypeId.Clear();
 
             string csvPath = "Sheltered - Item #.csv";
             if (File.Exists(csvPath))
@@ -53,13 +65,29 @@ namespace ShelteredSE
 
                             if (typeStr == "type" || indexStr == "i#") continue; // Skip header
 
+                            List<string> notes = new List<string>();
+                            for (int j = 3; j < parts.Length; j++)
+                            {
+                                var note = parts[j].Trim();
+                                if (!string.IsNullOrEmpty(note)) notes.Add(note);
+                            }
+                            var descStr = string.Join(" | ", notes);
+
+                            var info = new CsvItemInfo
+                            {
+                                TypeId = typeStr,
+                                Name = nameStr,
+                                Description = descStr
+                            };
+
                             if (int.TryParse(indexStr, out int idx))
                             {
-                                itemNamesByIndex[idx] = nameStr;
+                                info.Index = idx;
+                                csvItemsByIndex[idx] = info;
                             }
                             if (!string.IsNullOrEmpty(typeStr))
                             {
-                                itemNamesByTypeId[typeStr] = nameStr;
+                                csvItemsByTypeId[typeStr] = info;
                             }
                         }
                     }
@@ -148,19 +176,38 @@ namespace ShelteredSE
         public void IProcess(XmlNode invMan)
         {
             int counter = 0;
+            allInventoryListViewItems.Clear();
+            form1.listView_inventory.Items.Clear();
+
+            // Set up multi-column view
+            form1.listView_inventory.Columns.Clear();
+            form1.listView_inventory.Columns.Add("Name", 150);
+            form1.listView_inventory.Columns.Add("ID", 50);
+            form1.listView_inventory.Columns.Add("Description", 250);
+            form1.listView_inventory.HeaderStyle = ColumnHeaderStyle.Clickable;
+
             foreach (XmlNode node in invMan)
             {
                 var realId = node.SelectSingleNode("type")?.InnerText ?? (node.ChildNodes.Count > 0 ? node.ChildNodes[0].InnerText : "");
                 var count = node.SelectSingleNode("count")?.InnerText ?? (node.ChildNodes.Count > 1 ? node.ChildNodes[1].InnerText : "");
 
                 string realName = null;
+                string description = "";
                 if (node.Name.StartsWith("i") && int.TryParse(node.Name.Substring(1), out int slotIdx))
                 {
-                    itemNamesByIndex.TryGetValue(slotIdx, out realName);
+                    if (csvItemsByIndex.TryGetValue(slotIdx, out var info))
+                    {
+                        realName = info.Name;
+                        description = info.Description;
+                    }
                 }
                 if (string.IsNullOrEmpty(realName))
                 {
-                    itemNamesByTypeId.TryGetValue(realId, out realName);
+                    if (csvItemsByTypeId.TryGetValue(realId, out var info))
+                    {
+                        realName = info.Name;
+                        description = info.Description;
+                    }
                 }
                 if (string.IsNullOrEmpty(realName))
                 {
@@ -168,11 +215,119 @@ namespace ShelteredSE
                 }
 
                 inventoryMap.Add(("InventoryManager_" + counter.ToString() + "_textbox", "InventoryManager/inventory/" + node.Name + "/count"));
-                form1.listView_inventory.Items.Add(new ListViewItem() { Text = realName });
+                
+                var lvi = new ListViewItem(realName) { Tag = counter };
+                lvi.SubItems.Add(realId);
+                lvi.SubItems.Add(description);
+
+                allInventoryListViewItems.Add(lvi);
+                form1.listView_inventory.Items.Add(lvi);
                 counter += 1;
             }
             form1.listView_inventory.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);
+
+            InitializeSearchBar();
         }
+
+        private void InitializeSearchBar()
+        {
+            form1.BeginInvoke((MethodInvoker)delegate
+            {
+                var parent = form1.listView_inventory.Parent;
+                if (parent != null && parent.Name != "searchContainerPanel")
+                {
+                    TableLayoutPanel searchContainer = new TableLayoutPanel()
+                    {
+                        Name = "searchContainerPanel",
+                        Dock = DockStyle.Fill,
+                        RowCount = 2,
+                        ColumnCount = 1
+                    };
+                    searchContainer.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+                    searchContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+                    Panel searchBarPanel = new Panel()
+                    {
+                        Dock = DockStyle.Fill,
+                        Margin = new Padding(0)
+                    };
+
+                    Label searchLabel = new Label()
+                    {
+                        Text = "Search:",
+                        Location = new Point(3, 8),
+                        Size = new Size(55, 20),
+                        TextAlign = ContentAlignment.MiddleLeft
+                    };
+
+                    TextBox searchBox = new TextBox()
+                    {
+                        Name = "textBox_searchInventory",
+                        Location = new Point(60, 5),
+                        Width = parent.Width - 70,
+                        Anchor = AnchorStyles.Left | AnchorStyles.Right
+                    };
+
+                    searchBox.TextChanged += (sender, e) =>
+                    {
+                        FilterInventoryList(searchBox.Text);
+                    };
+
+                    searchBarPanel.Controls.Add(searchLabel);
+                    searchBarPanel.Controls.Add(searchBox);
+
+                    int col = 0, row = 0;
+                    if (parent is TableLayoutPanel tlp)
+                    {
+                        col = tlp.GetColumn(form1.listView_inventory);
+                        row = tlp.GetRow(form1.listView_inventory);
+                        tlp.Controls.Remove(form1.listView_inventory);
+                    }
+                    else
+                    {
+                        parent.Controls.Remove(form1.listView_inventory);
+                    }
+
+                    searchContainer.Controls.Add(searchBarPanel, 0, 0);
+                    searchContainer.Controls.Add(form1.listView_inventory, 0, 1);
+
+                    if (parent is TableLayoutPanel tlp2)
+                    {
+                        tlp2.Controls.Add(searchContainer, col, row);
+                    }
+                    else
+                    {
+                        parent.Controls.Add(searchContainer);
+                    }
+                }
+            });
+        }
+
+        private void FilterInventoryList(string query)
+        {
+            form1.listView_inventory.BeginUpdate();
+            form1.listView_inventory.Items.Clear();
+
+            var filtered = allInventoryListViewItems;
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                query = query.Trim();
+                filtered = allInventoryListViewItems.Where(item =>
+                    item.Text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 || 
+                    item.SubItems[1].Text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 || 
+                    item.SubItems[2].Text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
+                ).ToList();
+            }
+
+            foreach (var item in filtered)
+            {
+                form1.listView_inventory.Items.Add(item);
+            }
+
+            form1.listView_inventory.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);
+            form1.listView_inventory.EndUpdate();
+        }
+
         // INVENTORY PAINTER
         public void PaintInventoryManager(int index)
         {
@@ -188,7 +343,17 @@ namespace ShelteredSE
             }
             else
             {
-                form1.panel_inventory.Controls.Add(new Label() { Text = form1.listView_inventory.Items[index].Text, Name = "InventoryManager_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
+                string displayName = "Unknown Item";
+                foreach (ListViewItem item in allInventoryListViewItems)
+                {
+                    if (item.Tag is int tagIdx && tagIdx == index)
+                    {
+                        displayName = item.Text;
+                        break;
+                    }
+                }
+
+                form1.panel_inventory.Controls.Add(new Label() { Text = displayName, Name = "InventoryManager_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
                 var initialValue = xmlData.SelectSingleNode(inventoryMap[index].Path).InnerText;
                 var inputCtrl = CreateInputControl(initialValue, "InventoryManager_" + index.ToString() + "_textbox", new Point(200, 10));
                 form1.panel_inventory.Controls.Add(inputCtrl);
