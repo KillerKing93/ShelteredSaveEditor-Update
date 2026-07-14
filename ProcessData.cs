@@ -400,11 +400,41 @@ namespace ShelteredSE
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FamilyManager/particleTintActive"));
             form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Mystery Hatch Password" });
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FamilyManager/particleTint"));
+            
             // stored water details
             form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Stored Water" });
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "WaterManager/storedWater"));
             form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Max Stored Water" });
             saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "WaterManager/maxStoredWater"));
+
+            // stored food details
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Stored Food" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/storedFood"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Max Stored Food" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "FoodManager/maxStoredFood"));
+
+            // oxygen & radiation
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Oxygen Level" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "EnvironmentManager/oxygenLevel"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Radiation Level" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "EnvironmentManager/radiationLevel"));
+
+            // Pet stats
+            if (xmlData.SelectSingleNode("Pet") != null)
+            {
+                form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pet Dead" });
+                saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "Pet/dead"));
+                form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pet Health" });
+                saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "Pet/health"));
+                form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Pet Hunger" });
+                saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "Pet/hunger"));
+            }
+
+            // Game Time
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Game Time Days" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "GameTime/days"));
+            form1.listView_saveInfo.Items.Add(new ListViewItem() { Text = "Game Time Hour" });
+            saveInfoMap.Add(("SaveInfo_" + counter++.ToString() + "_textbox", "GameTime/hour"));
         }
         // SAVE INFO PAINTER
         public void PaintSaveInfo(int index)
