@@ -179,11 +179,17 @@ namespace ShelteredSE
             allInventoryListViewItems.Clear();
             form1.listView_inventory.Items.Clear();
 
+            // Set Column 0 of tableLayout_inventory to 450 pixels absolute so that columns and search bar are fully visible!
+            if (form1.tableLayout_inventory.ColumnStyles.Count > 0)
+            {
+                form1.tableLayout_inventory.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 450F);
+            }
+
             // Set up multi-column view
             form1.listView_inventory.Columns.Clear();
-            form1.listView_inventory.Columns.Add("Name", 150);
+            form1.listView_inventory.Columns.Add("Name", 170);
             form1.listView_inventory.Columns.Add("ID", 50);
-            form1.listView_inventory.Columns.Add("Description", 250);
+            form1.listView_inventory.Columns.Add("Description", 200);
             form1.listView_inventory.HeaderStyle = ColumnHeaderStyle.Clickable;
 
             foreach (XmlNode node in invMan)
@@ -264,7 +270,7 @@ namespace ShelteredSE
                     {
                         Name = "textBox_searchInventory",
                         Location = new Point(60, 5),
-                        Width = parent.Width - 70,
+                        Width = 350,
                         Anchor = AnchorStyles.Left | AnchorStyles.Right
                     };
 
@@ -340,20 +346,33 @@ namespace ShelteredSE
             {
                 selectedControls[0].Show();
                 form1.panel_inventory.Controls.Find("InventoryManager_" + index.ToString() + "_label", false)[0].Show();
+
+                var idLabel = form1.panel_inventory.Controls.Find("InventoryManager_" + index.ToString() + "_idLabel", false);
+                if (idLabel.Length > 0) idLabel[0].Show();
+                var descLabel = form1.panel_inventory.Controls.Find("InventoryManager_" + index.ToString() + "_descLabel", false);
+                if (descLabel.Length > 0) descLabel[0].Show();
             }
             else
             {
                 string displayName = "Unknown Item";
+                string realId = "Unknown";
+                string description = "";
+
                 foreach (ListViewItem item in allInventoryListViewItems)
                 {
                     if (item.Tag is int tagIdx && tagIdx == index)
                     {
                         displayName = item.Text;
+                        realId = item.SubItems[1].Text;
+                        description = item.SubItems[2].Text;
                         break;
                     }
                 }
 
-                form1.panel_inventory.Controls.Add(new Label() { Text = displayName, Name = "InventoryManager_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
+                form1.panel_inventory.Controls.Add(new Label() { Text = displayName, Name = "InventoryManager_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true, Font = new Font(form1.Font, FontStyle.Bold) });
+                form1.panel_inventory.Controls.Add(new Label() { Text = "ID: " + realId, Name = "InventoryManager_" + index.ToString() + "_idLabel", Location = new Point(10, 35), AutoSize = true });
+                form1.panel_inventory.Controls.Add(new Label() { Text = "Description: " + description, Name = "InventoryManager_" + index.ToString() + "_descLabel", Location = new Point(10, 60), AutoSize = true, MaximumSize = new Size(450, 0) });
+
                 var initialValue = xmlData.SelectSingleNode(inventoryMap[index].Path).InnerText;
                 var inputCtrl = CreateInputControl(initialValue, "InventoryManager_" + index.ToString() + "_textbox", new Point(200, 10));
                 form1.panel_inventory.Controls.Add(inputCtrl);
