@@ -452,9 +452,20 @@ namespace ShelteredSE
             else
             {
                 var node = xmlData.SelectSingleNode(saveInfoMap[index].Path);
-                if (node.Attributes.Count > 0)
+                if (node == null)
                 {
-                    string password = node.Attributes[0].InnerText + node.Attributes[1].InnerText + node.Attributes[2].InnerText + node.Attributes[3].InnerText;
+                    form1.panel_saveInfo.Controls.Add(new Label() { Text = form1.listView_saveInfo.Items[index].Text, Name = "SaveInfo_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
+                    form1.panel_saveInfo.Controls.Add(new Label() { Text = "Not available in this save file", Name = "SaveInfo_" + index.ToString() + "_textbox", Location = new Point(200, 10), AutoSize = true, ForeColor = System.Drawing.Color.Red });
+                    return;
+                }
+
+                if (node.Attributes != null && node.Attributes.Count > 0)
+                {
+                    string password = "";
+                    foreach (XmlAttribute attr in node.Attributes)
+                    {
+                        password += attr.InnerText;
+                    }
                     form1.panel_saveInfo.Controls.Add(new Label() { Text = form1.listView_saveInfo.Items[index].Text, Name = "SaveInfo_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
                     var inputCtrl = CreateInputControl(password, "SaveInfo_" + index.ToString() + "_textbox", new Point(200, 10));
                     form1.panel_saveInfo.Controls.Add(inputCtrl);
@@ -462,7 +473,7 @@ namespace ShelteredSE
                 else
                 {
                     form1.panel_saveInfo.Controls.Add(new Label() { Text = form1.listView_saveInfo.Items[index].Text, Name = "SaveInfo_" + index.ToString() + "_label", Location = new Point(10, 10), AutoSize = true });
-                    var initialValue = xmlData.SelectSingleNode(saveInfoMap[index].Path).InnerText;
+                    var initialValue = node.InnerText;
                     var inputCtrl = CreateInputControl(initialValue, "SaveInfo_" + index.ToString() + "_textbox", new Point(200, 10));
                     form1.panel_saveInfo.Controls.Add(inputCtrl);
                 }
